@@ -10,8 +10,8 @@ pipeline {
                     try {
                         sh "sed -i -e 's/was deployed/was deployed on $EC2_INSTANCE_ID in $EC2_AZ/g' /var/www/html/index.html"
                         sh 'sudo apt install apache2 -y'
-                        sh 'chmod 664 /var/www/html/index.html'
                         sh 'sudo service apache2 start'
+                        sh 'chmod 664 /var/www/html/index.html'
                         sh 'sudo service apache2 stop'
                     } catch (Exception e) {
                         currentBuild.result = 'FAILURE'
