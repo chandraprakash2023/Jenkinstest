@@ -13,7 +13,6 @@ pipeline {
                     sh 'sudo service apache2 start'
                     sh 'sudo service apache2 stop'
                 }
-                }
             }
         }
         stage('Verify Webpage') {
