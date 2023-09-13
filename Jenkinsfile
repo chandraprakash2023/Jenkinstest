@@ -7,7 +7,6 @@ pipeline {
                 script {
                     def EC2_INSTANCE_ID = 'i-0b9816bc51c2dc387'
                     def EC2_AZ = 'ap-south-1'
-                    sh 'chmod 664 /var/www/html/index.html'
                     sh 'sudo service apache2 start'
                     sh 'sudo service apache2 stop'
                 }
