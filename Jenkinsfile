@@ -1,38 +1,30 @@
 pipeline {
     agent any
 
-    environment {
-        AWS_DEFAULT_REGION = 'ap-south-1'
-        AWS_ACCESS_KEY_ID     = credentials('AKIAVCHLF5EKZ4OG4BFM')
-        AWS_SECRET_ACCESS_KEY = credentials('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')
-    }
-
     stages {
-        stage('Checkout from GitHub') {
+        stage('Deploy to EC2') {
             steps {
-                // Checkout the code from GitHub
-                git credentialsId: 'YourGitHubCredentials', url: 'https://github.com/chandraprakash2023/Jenkinstest.git'
+                script {
+                    def EC2_INSTANCE_ID = 'i-0b9816bc51c2dc387'
+                    def EC2_AZ = 'ap-south-1'
+                    sh "sed -i -e 's/was deployed/was deployed on $EC2_INSTANCE_ID in $EC2_AZ/g' /var/www/html/index.html"
+                    sh 'chmod 664 /var/www/html/index.html'
+                    sh 'sudo apt install apache2 -y'
+                    sh 'sudo service apache2 start'
+                    sh 'sudo service apache2 stop'
+                }
             }
         }
-
-        stage('Create Zip Archive') {
+        stage('Verify Webpage') {
             steps {
-                // Create a zip archive of your code
-                sh 'zip -r my_app.zip ./*'
-            }
-        }
-
-        stage('Upload to S3') {
-            steps {
-                // Upload the zip archive to an S3 bucket
-                sh "aws s3 cp my_app.zip s3://codedeploybuckettest123/"
-            }
-        }
-
-        stage('Deploy to EC2 with CodeDeploy') {
-            steps {
-                // Deploy the code to EC2 using AWS CodeDeploy
-                sh "aws deploy create-deployment --application-name Newtest --deployment-group-name TestCodeDeploy --s3-location bucket=codedeploybuckettest123,key=my_app.zip,bundleType=zip"
+                script {
+                    def curlOutput = sh(script: 'curl -v --silent localhost:80 2>&1', returnStatus: true)
+                    if (curlOutput == 0) {
+                        echo "Webpage successfully accessed."
+                    } else {
+                        error "Failed to access webpage."
+                    }
+                }
             }
         }
     }
