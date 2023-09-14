@@ -1,36 +1,39 @@
 pipeline {
-    agent any
+    agent any
 
-    stages {
-        stage('Deploy to EC2') {
-            steps {
-                script {
-                    def EC2_INSTANCE_ID = 'i-0b9816bc51c2dc387'
-                    def EC2_AZ = 'ap-south-1'
-                    sh '''
-                        echo user | sudo -S apt install apache2 -y
-                    '''
-                    sh "sed -i -e 's/was deployed/was deployed on $EC2_INSTANCE_ID in $EC2_AZ/g' /var/www/html/index.html"
-                    sh 'chmod 664 /var/www/html/index.html'
-                    sh 'sudo service apache2 start'
-                    sh 'sudo service apache2 stop'
-                }
-            }
-        }
-        stage('Verify Webpage') {
-            steps {
-                script {
-                    def curlOutput = sh(script: 'curl -v --silent localhost:80 2>&1', returnStatus: true)
-                    if (curlOutput == 0) {
-                        echo "Webpage successfully accessed."
-                    } else {
-                        error "Failed to access webpage."
-                    }
-                }
-            }
-        }
-    }
+    stages {
+        stage('Lint HTML') {
+            steps {
+                sh 'tidy -q -e *.html'
+            }
+        }
+        stage('Retrieve EC2 Public IP') {
+            steps {
+                script {
+                    def awsRegion = 'ap-south-1' // Replace with your AWS region
+                    def ec2InstanceId = 'i-0b9816bc51c2dc387' // Replace with your EC2 instance ID
+
+                    def ec2PublicIp = sh(
+                        script: "aws ec2 describe-instances --region $awsRegion --instance-ids $ec2InstanceId --query 'Reservations[0].Instances[0].PublicIpAddress' --output text",
+                        returnStatus: true
+                    ).trim()
+
+                    if (ec2PublicIp) {
+                        echo "EC2 Public IP: $3.108.189.102"
+                    } else {
+                        error "Failed to retrieve EC2 Public IP."
+                    }
+                }
+            }
+        }
+        stage('Upload to AWS S3') {
+            steps {
+                // Replace 'your-s3-bucket' and 'your-path' with your specific values
+                withAWS(region: 'your-aws-region') {
+                    s3Upload(file: 'index.html', bucket: 'codedeploybuckettest123', path: 'var/www/html/index.html')
+                }
+            }
+        }
+    }
 }
-
-
 
