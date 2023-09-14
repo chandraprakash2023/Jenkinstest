@@ -18,7 +18,7 @@ pipeline {
                     ).trim()
 
                     if (ec2PublicIp) {
-                        echo "EC2 Public IP: $3.108.189.102"
+                        echo "EC2 Public IP: 3.108.189.102"
                     } else {
                         error "Failed to retrieve EC2 Public IP."
                     }
