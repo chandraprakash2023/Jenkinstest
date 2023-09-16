@@ -1,67 +1,106 @@
+def latestTag = 'UnKnown1'
+@Library('github.com/releaseworks/jenkinslib') _
 pipeline {
-    agent any
+     environment {
+        BRANCH_NAME = "dev"
+        MAJOR_VERSION = "1"
+        MINOR_VERSION = "0"
+        GIT_REPO = "https://github.com/chandraprakash2023/Jenkinstest.git"
 
-    environment {
-        EC2_PUBLIC_IP = '3.108.189.102'
-    }
+    }
+    agent any
+    stages {
+          stage('SonarQube analysis')
+          {
+        steps {
+            sh "echo woith sona start"
 
-    stages {
-        stage('Lint HTML') {
-            steps {
-                sh 'tidy -q -e *.html'
-            }
-        }
-        stage('Retrieve EC2 Public IP') {
-            steps {
-                script {
-                    def awsRegion = 'ap-south-1' // Replace with your AWS region
-                    def ec2InstanceId = 'i-0b9816bc51c2dc387' // Replace with your EC2 instance ID
+        //     script {
 
-                    // Use the AWS credentials you configured in Jenkins
-                    withAWS(credentials: 'AWS', region: awsRegion) {
-                        EC2_PUBLIC_IP = sh(
-                            script: "aws ec2 describe-instances --region $awsRegion --instance-ids $ec2InstanceId --query 'Reservations[0].Instances[0].PublicIpAddress' --output text",
-                            returnStdout: true
-                        ).trim()
+        //   scannerHome = tool 'nx-scanner'
+        // }
+        //  sh "echo woith sona r 1${scannerHome}"
+        // withSonarQubeEnv('SonarCloud') {
+        //     sh "echo woith sonar ${scannerHome}"
+        //   sh "${scannerHome}/bin/sonar-scanner"
 
-                        if (EC2_PUBLIC_IP) {
-                            echo "EC2 Public IP: $EC2_PUBLIC_IP"
-                        } else {
-                            error "Failed to retrieve EC2 Public IP."
-                        }
-                    }
-                }
-            }
-        }
-        stage('Upload to AWS S3') {
-            steps {
-                script {
-                    def awsRegion = 'ap-south-1' // Replace with your AWS region
-                    def s3Bucket = 'codedeploybuckettest123'
-                    def s3Path = 'var/www/html/index.html'
+        // } 
 
-                    def s3Object = [
-                        entries: [
-                            [
-                                file: 'index.html',
-                                path: s3Path
-                            ]
-                        ],
-                        bucket: s3Bucket
-                    ]
+        }
+      }
+        stage('Build') {
 
-                    // Use the AWS credentials you configured in Jenkins
-                    withAWS(credentials: 'AWS', region: awsRegion) {
-                        if (EC2_PUBLIC_IP) {
-                            echo "Uploading to EC2 Public IP: $EC2_PUBLIC_IP"
-                            // You can use the EC2_PUBLIC_IP variable here
-                            // to upload to the correct EC2 instance.
-                        } else {
-                            error "EC2 Public IP not available. Cannot upload to S3."
-                        }
-                    }
-                }
-            }
-        }
-    }
+            steps {
+                  {
+                                    sh 'install_dependencies.sh'
+                                    sh 'start_server.sh'
+                                    sh ''
+                                    echo 'code building done'
+                                }
+                }
+        }
+
+
+       stages {
+        stage('Checkout') {
+            steps {
+                // Checkout your code from Bitbucket repository
+                script {
+                    checkout([$class: 'GitSCM', branches: [[name: 'main']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'your-credentials-id', url: 'https://github.com/chandraprakash2023/Jenkinstest.git']]])
+                }
+            }
+        }
+        
+        stage('Create Zip') {
+            steps {
+                // Create a zip file containing the checked-out code
+                script {
+                    sh 'zip -r my_code.zip ./*'
+                }
+                
+         stage('Upload Build') {
+            steps {
+                echo "pusing latest zip to s3 bucket"
+                withAWS(credentials:'aws-credentials',region: 'ap-south-1') {
+                    script{
+                       s3Upload(file:sh(returnStdout: true, script: 'printf $(git describe --abbrev=0 --tags).zip'), bucket:'nx-client-code-deploy', path:sh(returnStdout: true, script: 'printf $(git describe --abbrev=0 --tags).zip'))
+                    }
+                }
+            }
+        }
+         stage('deploy') {
+           steps {
+               withCredentials([usernamePassword(credentialsId: 'aws-credentials', usernameVariable: 'accessKey', passwordVariable: 'secretKey')]) {
+              step([$class: 'AWSCodeDeployPublisher',
+              applicationName: 'nxClientFontEnd',  credentials: 'awsAccessKey',
+              awsAccessKey: "$accessKey", awsSecretKey: "$secretKey",
+              deploymentGroupAppspec: true, deploymentGroupName: 'dev_env', deploymentMethod: 'deploy',
+               excludes: '', iamRoleArn: 'arn:aws:iam::844556987140:instance-profile/EC2-instance', includes: '**', proxyHost: '', proxyPort: 0,
+               region: 'ap-south-1', s3bucket: 'nx-client-code-deploy', s3prefix: '', subdirectory: '', versionFileName: '$(git describe --abbrev=0 --tags).zip',
+                waitForCompletion: false])
+                }
+
+
+            }
+        }
+
+    }
+    post {
+        always {
+            echo 'This will always run'
+        }
+        success {
+            echo 'Project build was completed'
+        }
+        failure {
+            echo 'Project build was failed'
+        }
+        // unstable {
+        //     echo 'This will run only if the run was marked as unstable'
+        // }
+        changed {
+            echo 'This will run only if the state of the Pipeline has changed new chage'
+            echo 'For example, if the Pipeline was previously failing but is now successfully done'
+        }
+    }
 }
