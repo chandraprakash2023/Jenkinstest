@@ -31,7 +31,7 @@ pipeline {
         stage('Deploy to EC2') {
             steps {
                 withAWS(credentials: 'aws-credentials') { // configure AWS credentials in Jenkins
-                    sh 'aws deploy create-deployment --application-name your-app --s3-location bucket=your-bucket,bundleType=zip,key=my-app.zip' // replace with your application and S3 details
+                    sh 'aws deploy create-deployment --application-name Newtest --s3-location bucket=codedeploybuckettest123,bundleType=zip,key=my-app.zip' // replace with your application and S3 details
                 }
             }
         }
