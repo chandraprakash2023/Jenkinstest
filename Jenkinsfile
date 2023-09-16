@@ -31,7 +31,7 @@ pipeline {
         stage('Build') {
 
             steps {
-                  {
+                                {
                                     sh 'install_dependencies.sh'
                                     sh 'start_server.sh'
                                     sh ''
